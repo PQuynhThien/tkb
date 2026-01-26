@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TKB 12A8 - Cloud Sync</title>
+    <title>TKB 12A8</title>
     <style>
         :root {
             --bg-dark: #202124;
@@ -25,6 +25,7 @@
         #secret-page { display: none; background-color: var(--bg-dark); min-height: 100vh; flex-direction: column; align-items: center; padding-bottom: 50px; }
         .keep-nav { width: 100%; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-dark); position: sticky; top: 0; z-index: 100; gap: 10px; }
         #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; width: 95%; max-width: 1300px; margin-top: 20px; }
+        
         .note-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; cursor: pointer; transition: 0.3s; overflow: hidden; max-height: 450px; position: relative; background-size: cover; background-position: center; }
         .note-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1; display: none; }
         .note-card.has-bg::before { display: block; }
@@ -35,9 +36,20 @@
         .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1; display: none; }
         .modal-content.has-bg .modal-overlay { display: block; }
         .modal-inner { position: relative; z-index: 2; display: flex; flex-direction: column; }
+        
         .toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; background: rgba(30, 31, 34, 0.95); border-bottom: 1px solid var(--border-color); align-items: center; }
         .tool-btn { background: #3c4043; border: 1px solid #5f6368; color: white; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
         #editor-body { width: 100%; min-height: 450px; max-height: 70vh; padding: 25px; outline: none; overflow-y: auto; box-sizing: border-box; line-height: 1.6; }
+
+        /* Widget Styles */
+        .time-widget { display: inline-block; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 15px 20px; border-radius: 12px; margin: 15px 0; color: #fff; text-align: center; min-width: 250px; }
+        .time-val { font-size: 20px; font-weight: bold; color: var(--accent-blue); display: block; }
+        .cl-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .cl-check { width: 18px; height: 18px; cursor: pointer; }
+        .cl-text.done { text-decoration: line-through; opacity: 0.5; }
+        .note-table { margin: 15px 0; font-size: 13px; width: 100%; border-collapse: collapse; }
+        .note-table th, .note-table td { border: 1px solid #444; padding: 5px; text-align: center; }
+
         .btn-ui { padding: 8px 15px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--accent-blue); cursor: pointer; font-weight: bold; }
         .input-wrapper { width: 100%; max-width: 600px; margin-top: 30px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; }
         #new-title { width: 100%; padding: 12px 15px; background: transparent; border: none; color: white; outline: none; font-weight: bold; }
@@ -59,7 +71,7 @@
             </table>
         </div></div>
         <button class="btn-ui" style="margin-top:20px" onclick="uploadTKB()">💾 LƯU LÊN CLOUD</button>
-        <div id="sync-status" style="margin-top:10px; font-size:12px; color:#81c995">Đang kết nối...</div>
+        <div id="sync-status" style="margin-top:10px; font-size:12px; color:#81c995">Đang kết nối Cloud...</div>
     </div>
 
     <div id="secret-page">
@@ -81,7 +93,14 @@
         <div class="modal-inner">
             <div class="toolbar">
                 <button class="tool-btn" onclick="execCmd('bold')">B</button>
+                <button class="tool-btn" onclick="insertChecklist()">✅ Checklist</button>
+                <button class="tool-btn" style="color: #fbbc04" onclick="insertTableWidget()">📅 Bảng TKB</button>
+                <button class="tool-btn" style="color: #8ab4f8" onclick="insertTimeWidget()">⏳ Đếm Ngược</button>
                 <button class="tool-btn" onclick="document.getElementById('colorPicker').click()">🎨 Màu <input type="color" id="colorPicker" style="display:none" onchange="execCmd('foreColor', this.value)"></button>
+                <button class="tool-btn" onclick="document.getElementById('imgInput').click()">🖼 Ảnh</button>
+                <button class="tool-btn" onclick="document.getElementById('themeImgInput').click()">🌄 Nền</button>
+                <input type="file" id="imgInput" style="display:none" accept="image/*" onchange="handleImage(event)">
+                <input type="file" id="themeImgInput" style="display:none" accept="image/*" onchange="handleThemeImage(event)">
                 <div style="flex-grow:1"></div>
                 <div id="theme-dots" style="display:flex"></div>
             </div>
@@ -95,7 +114,6 @@
     </div></div>
 
     <script type="module">
-        // --- CẤU HÌNH FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -113,13 +131,12 @@
         const db = getDatabase(app);
         const cloudRef = ref(db, 'master_data');
 
-        // Biến toàn cục
         let notes = [];
         let tkbData = [];
         let currentId = null;
         const _0xPASS = "Thiện dz";
 
-        // Khởi tạo
+        // Khởi tạo TKB
         function initTKB(data) {
             const tbody = document.getElementById('tkbBody');
             tbody.innerHTML = "";
@@ -142,69 +159,65 @@
             });
         }
 
-        // Đồng bộ dữ liệu từ Cloud
+        // Lấy dữ liệu Cloud
         onValue(cloudRef, (snapshot) => {
             const val = snapshot.val();
             if (val) {
                 notes = val.notes || [];
                 tkbData = val.tkb || [];
-                document.getElementById('sync-status').innerText = "✅ Đã đồng bộ từ Cloud";
-            } else {
-                document.getElementById('sync-status').innerText = "🆕 Chào mừng! Hãy tạo dữ liệu mới.";
+                document.getElementById('sync-status').innerText = "✅ Cloud đã đồng bộ";
             }
             initTKB(tkbData);
             renderNotes();
         });
 
-        // Hàm lưu lên Cloud
         window.saveToCloud = function() {
             set(cloudRef, {
                 notes: notes,
                 tkb: Array.from(document.querySelectorAll('#tkbBody tr')).map(r => Array.from(r.querySelectorAll('td')).map(td => td.innerText))
-            }).then(() => {
-                document.getElementById('sync-status').innerText = "☁️ Đã lưu lên Cloud lúc " + new Date().toLocaleTimeString();
             });
         };
 
         window.uploadTKB = function() {
             window.saveToCloud();
-            alert("Đã đồng bộ TKB lên Cloud!");
+            alert("Đã lưu TKB lên Cloud!");
         };
 
         function unlock() {
-            const input = document.getElementById('v-key').innerText.trim();
-            if (input === _0xPASS) {
+            if (document.getElementById('v-key').innerText.trim() === _0xPASS) {
                 document.getElementById('v-key').innerText = "";
                 document.getElementById('main-ui').style.display = 'none';
                 document.getElementById('secret-page').style.display = 'flex';
-            } else {
-                window.saveToCloud();
-            }
+            } else { window.saveToCloud(); }
         }
 
+        // Ghi chú & Chức năng cũ
         window.renderNotes = function() {
             const grid = document.getElementById('notes-grid'); 
             grid.innerHTML = "";
             notes.forEach(n => {
                 const card = document.createElement('div');
-                card.className = `note-card ${n.color || 'c-default'}`;
+                card.className = `note-card ${n.bgImg ? 'has-bg' : (n.color || 'c-default')}`;
+                if (n.bgImg) card.style.backgroundImage = `url(${n.bgImg})`;
                 card.onclick = () => openEdit(n.id);
-                card.innerHTML = `<div class="content-wrapper"><div style="font-weight:bold; margin-bottom:8px">${n.title || 'Ghi chú'}</div><div style="font-size:13px; max-height:120px; overflow:hidden">${n.body}</div></div>`;
+                card.innerHTML = `<div class="content-wrapper"><div style="font-weight:bold; margin-bottom:8px">${n.title || 'Note'}</div><div style="font-size:13px; max-height:120px; overflow:hidden">${n.body}</div></div>`;
                 grid.appendChild(card);
             });
         }
 
         window.openEdit = function(id) {
-            currentId = id; 
-            const n = notes.find(x => x.id === id); 
+            currentId = id; const n = notes.find(x => x.id === id); 
             document.getElementById('editor-title').value = n.title; 
             document.getElementById('editor-body').innerHTML = n.body; 
-            document.getElementById('modal-box').className = `modal-content ${n.color}`;
+            applyTheme(n.color, n.bgImg);
             document.getElementById('edit-modal').style.display = 'flex'; 
         }
 
         window.closeEdit = function() {
             const n = notes.find(x => x.id === currentId);
+            document.querySelectorAll('.cl-check').forEach(cb => {
+                cb.checked ? cb.setAttribute('checked', 'true') : cb.removeAttribute('checked');
+            });
             n.title = document.getElementById('editor-title').value;
             n.body = document.getElementById('editor-body').innerHTML;
             window.saveToCloud();
@@ -214,39 +227,64 @@
         window.addNote = function() {
             const t = document.getElementById('new-title').value, b = document.getElementById('new-body-editor').innerHTML;
             if(t || b) {
-                notes.unshift({ id: Date.now(), title: t, body: b, color: 'c-default' });
+                notes.unshift({ id: Date.now(), title: t, body: b, color: 'c-default', bgImg: null });
                 window.saveToCloud();
-                document.getElementById('new-title').value = ""; 
-                document.getElementById('new-body-editor').innerHTML = ""; 
+                document.getElementById('new-title').value = ""; document.getElementById('new-body-editor').innerHTML = ""; 
                 document.getElementById('new-body-editor').style.display = 'none';
             }
         }
 
         window.deleteNote = function() {
-            if(confirm("Xóa ghi chú này?")) {
-                notes = notes.filter(x => x.id !== currentId);
-                window.saveToCloud();
-                document.getElementById('edit-modal').style.display = 'none';
-            }
+            if(confirm("Xóa?")) { notes = notes.filter(x => x.id !== currentId); window.saveToCloud(); document.getElementById('edit-modal').style.display = 'none'; }
         }
 
-        window.exitSecret = function() {
-            document.getElementById('secret-page').style.display='none';
-            document.getElementById('main-ui').style.display='flex';
-        }
-
+        // Widgets Functions
         window.execCmd = (cmd, val = null) => document.execCommand(cmd, false, val);
+        window.insertChecklist = () => execCmd('insertHTML', `<div class="cl-item" contenteditable="false"><input type="checkbox" class="cl-check" onchange="this.nextElementSibling.classList.toggle('done', this.checked)"><div class="cl-text" contenteditable="true">Việc mới...</div></div><p><br></p>`);
+        window.insertTableWidget = () => execCmd('insertHTML', `<table class="note-table"><thead><tr><th>Tiết</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>T7</th></tr></thead><tbody>${[1,2,3,4,5].map(i => `<tr><td>${i}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}</tbody></table><p><br></p>`);
+        window.insertTimeWidget = () => {
+            const d = prompt("Mốc (YYYY-MM-DD HH:MM:SS):", "2026-06-25 00:00:00");
+            if(d) execCmd('insertHTML', `<div class="time-widget" data-date="${d}" contenteditable="false"><span class="time-val">...</span><span>Đến: ${d}</span></div><p><br></p>`);
+        }
 
-        // Thiết lập chấm màu
-        const dotContainer = document.getElementById('theme-dots');
+        window.handleImage = (e) => {
+            const reader = new FileReader();
+            reader.onload = ev => execCmd('insertHTML', `<img src="${ev.target.result}" style="max-width:100%; border-radius:8px"><p><br></p>`);
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        window.handleThemeImage = (e) => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const n = notes.find(x => x.id === currentId);
+                n.bgImg = ev.target.result; applyTheme(null, ev.target.result);
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        function applyTheme(cls, img) {
+            const box = document.getElementById('modal-box');
+            if (img) { box.style.backgroundImage = `url(${img})`; box.className = 'modal-content has-bg'; }
+            else { box.style.backgroundImage = ''; box.className = `modal-content ${cls || 'c-default'}`; }
+        }
+
+        // Timer update
+        setInterval(() => {
+            document.querySelectorAll('.time-widget').forEach(el => {
+                const diff = new Date(el.dataset.date).getTime() - new Date().getTime();
+                if (diff <= 0) { el.querySelector('.time-val').innerText = "D-DAY!"; return; }
+                const d = Math.floor(diff / 864e5), h = Math.floor((diff % 864e5) / 36e5), m = Math.floor((diff % 36e5) / 6e4), s = Math.floor((diff % 6e4) / 1000);
+                el.querySelector('.time-val').innerText = `${d}d ${h}h ${m}m ${s}s`;
+            });
+        }, 1000);
+
+        window.exitSecret = () => { document.getElementById('secret-page').style.display='none'; document.getElementById('main-ui').style.display='flex'; }
+
+        // Dots setup
         ['c-default', 'c-red', 'c-green', 'c-blue'].forEach(cls => {
             const d = document.createElement('div'); d.className = `dot ${cls}`;
-            d.onclick = () => { 
-                const n = notes.find(x => x.id === currentId); 
-                n.color = cls; 
-                document.getElementById('modal-box').className = `modal-content ${cls}`;
-            };
-            dotContainer.appendChild(d);
+            d.onclick = () => { const n = notes.find(x => x.id === currentId); n.color = cls; n.bgImg = null; applyTheme(cls, null); };
+            document.getElementById('theme-dots').appendChild(d);
         });
     </script>
 </body>
