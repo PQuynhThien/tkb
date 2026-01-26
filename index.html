@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TKB 12A8 - Cloud Admin</title>
+    <title>TKB 12A8 - Cloud Sync Status</title>
     <style>
         :root { --bg-dark: #202124; --border-color: #5f6368; --text-main: #e8eaed; --accent-blue: #8ab4f8; }
         body { background-color: #050505; color: var(--text-main); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
@@ -17,8 +17,14 @@
         
         #secret-page { display: none; background-color: var(--bg-dark); min-height: 100vh; flex-direction: column; align-items: center; padding-bottom: 50px; }
         .keep-nav { width: 100%; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-dark); position: sticky; top: 0; z-index: 100; gap: 10px; }
-        #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; width: 95%; max-width: 1300px; margin-top: 20px; }
         
+        /* Dòng chữ trạng thái cạnh nút Đổi Pass */
+        #cloud-status-text { font-size: 12px; font-weight: normal; padding: 5px 10px; border-radius: 15px; transition: 0.3s; }
+        .status-saved { color: #81c995; background: rgba(129, 201, 149, 0.1); }
+        .status-saving { color: #fdd663; background: rgba(253, 214, 99, 0.1); }
+        .status-waiting { color: #ff8a65; background: rgba(255, 138, 101, 0.1); }
+
+        #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; width: 95%; max-width: 1300px; margin-top: 20px; }
         .note-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; cursor: pointer; transition: 0.3s; overflow: hidden; max-height: 450px; position: relative; background-size: cover; background-position: center; }
         .note-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1; display: none; }
         .note-card.has-bg::before { display: block; }
@@ -33,14 +39,6 @@
         .toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; background: rgba(30, 31, 34, 0.95); border-bottom: 1px solid var(--border-color); align-items: center; }
         .tool-btn { background: #3c4043; border: 1px solid #5f6368; color: white; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
         #editor-body { width: 100%; min-height: 450px; max-height: 70vh; padding: 25px; outline: none; overflow-y: auto; box-sizing: border-box; line-height: 1.6; }
-
-        .time-widget { display: inline-block; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 15px 20px; border-radius: 12px; margin: 15px 0; color: #fff; text-align: center; min-width: 250px; }
-        .time-val { font-size: 20px; font-weight: bold; color: var(--accent-blue); display: block; }
-        .cl-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-        .cl-check { width: 18px; height: 18px; cursor: pointer; }
-        .cl-text.done { text-decoration: line-through; opacity: 0.5; }
-        .note-table { margin: 15px 0; font-size: 13px; width: 100%; border-collapse: collapse; }
-        .note-table th, .note-table td { border: 1px solid #444; padding: 5px; text-align: center; }
 
         .btn-ui { padding: 8px 15px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--accent-blue); cursor: pointer; font-weight: bold; }
         .input-wrapper { width: 100%; max-width: 600px; margin-top: 30px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; }
@@ -62,13 +60,16 @@
                 <tbody id="tkbBody"></tbody>
             </table>
         </div></div>
-        <button class="btn-ui" style="margin-top:20px" onclick="uploadTKB()">💾 LƯU LÊN CLOUD</button>
-        <div id="sync-status" style="margin-top:10px; font-size:12px; color:#81c995">Kết nối Firebase...</div>
+        <button class="btn-ui" style="margin-top:20px" onclick="uploadTKB()">💾 LƯU LẠI</button>
+        <div id="sync-status-main" style="margin-top:10px; font-size:12px; color:#81c995">Đã kết nối</div>
     </div>
 
     <div id="secret-page">
         <nav class="keep-nav">
             <div style="flex-grow:1; font-size:22px; font-weight:bold"><span style="color:var(--accent-blue)">⏱️</span> Nơi bí mật</div>
+            
+            <div id="cloud-status-text" class="status-saved">🟢 Đã lưu lên Cloud</div>
+            
             <button class="btn-ui" style="color:#ff9800" onclick="changePassword()">🔑 ĐỔI PASS</button>
             <button class="btn-ui" onclick="exitSecret()">ĐÓNG</button>
         </nav>
@@ -81,29 +82,25 @@
         <div id="notes-grid"></div>
     </div>
 
-    <div id="edit-modal"><div class="modal-content" id="modal-box">
-        <div class="modal-overlay"></div>
-        <div class="modal-inner">
-            <div class="toolbar">
-                <button class="tool-btn" onclick="execCmd('bold')">B</button>
-                <button class="tool-btn" onclick="insertChecklist()">✅ Checklist</button>
-                <button class="tool-btn" style="color: #fbbc04" onclick="insertTableWidget()">📅 Bảng TKB</button>
-                <button class="tool-btn" style="color: #8ab4f8" onclick="insertTimeWidget()">⏳ Đếm Ngược</button>
-                <button class="tool-btn" onclick="document.getElementById('imgInput').click()">🖼 Ảnh</button>
-                <button class="tool-btn" onclick="document.getElementById('themeImgInput').click()">🌄 Nền</button>
-                <input type="file" id="imgInput" style="display:none" accept="image/*" onchange="handleImage(event)">
-                <input type="file" id="themeImgInput" style="display:none" accept="image/*" onchange="handleThemeImage(event)">
-                <div style="flex-grow:1"></div>
-                <div id="theme-dots" style="display:flex"></div>
-            </div>
-            <input type="text" id="editor-title" placeholder="Tiêu đề" style="width:100%; background:transparent; border:none; color:white; padding:15px; font-size:1.2em; outline:none; font-weight:bold">
-            <div id="editor-body" contenteditable="true"></div>
-            <div style="padding:15px; text-align:right; border-top:1px solid #444; display:flex; justify-content:space-between">
-                <button class="btn-ui" style="color:#ff4d4d" onclick="deleteNote()">🗑 Xóa</button>
-                <button class="btn-ui" style="background:var(--accent-blue); color:black" onclick="closeEdit()">Lưu & Đóng</button>
-            </div>
+    <div id="edit-modal"><div class="modal-content" id="modal-box"><div class="modal-overlay"></div><div class="modal-inner">
+        <div class="toolbar">
+            <button class="tool-btn" onclick="execCmd('bold')">B</button>
+            <button class="tool-btn" onclick="insertChecklist()">✅ Checklist</button>
+            <button class="tool-btn" style="color: #fbbc04" onclick="insertTableWidget()">📅 Bảng TKB</button>
+            <button class="tool-btn" style="color: #8ab4f8" onclick="insertTimeWidget()">⏳ Đếm Ngược</button>
+            <button class="tool-btn" onclick="document.getElementById('imgInput').click()">🖼 Ảnh</button>
+            <button class="tool-btn" onclick="document.getElementById('themeImgInput').click()">🌄 Nền</button>
+            <input type="file" id="imgInput" style="display:none" accept="image/*" onchange="handleImage(event)">
+            <input type="file" id="themeImgInput" style="display:none" accept="image/*" onchange="handleThemeImage(event)">
+            <div style="flex-grow:1"></div><div id="theme-dots" style="display:flex"></div>
         </div>
-    </div></div>
+        <input type="text" id="editor-title" placeholder="Tiêu đề" style="width:100%; background:transparent; border:none; color:white; padding:15px; font-size:1.2em; outline:none; font-weight:bold">
+        <div id="editor-body" contenteditable="true"></div>
+        <div style="padding:15px; text-align:right; border-top:1px solid #444; display:flex; justify-content:space-between">
+            <button class="btn-ui" style="color:#ff4d4d" onclick="deleteNote()">🗑 Xóa</button>
+            <button class="btn-ui" style="background:var(--accent-blue); color:black" onclick="closeEdit()">Lưu & Đóng</button>
+        </div>
+    </div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -122,52 +119,93 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const cloudRef = ref(db, 'master_data');
+        const connectedRef = ref(db, ".info/connected");
 
         let notes = [];
         let tkbData = [];
+        let cloudPass = "Thiện dz";
         let currentId = null;
-        let cloudPass = "Thiện dz"; // Pass mặc định nếu cloud trống
 
-        // Lấy toàn bộ dữ liệu (bao gồm cả Pass) từ Cloud
+        // --- CẬP NHẬT TRẠNG THÁI LƯU ---
+        function updateStatus(type) {
+            const el = document.getElementById('cloud-status-text');
+            if (type === 'saving') {
+                el.innerText = "🟡 Đang thay đổi...";
+                el.className = "status-saving";
+            } else if (type === 'saved') {
+                el.innerText = "🟢 Đã lưu lên Cloud";
+                el.className = "status-saved";
+            } else if (type === 'waiting') {
+                el.innerText = "🟠 Đang đợi mạng...";
+                el.className = "status-waiting";
+            }
+        }
+
+        // Kiểm tra mạng liên tục
+        onValue(connectedRef, (snap) => {
+            if (!snap.val()) updateStatus('waiting');
+        });
+
+        window.saveToCloud = function() {
+            updateStatus('saving'); // Báo đang lưu
+            
+            const currentTkbTable = Array.from(document.querySelectorAll('#tkbBody tr')).map((r, rIdx) => {
+                return Array.from(r.querySelectorAll('td')).map((td, cIdx) => {
+                    if (rIdx === 3 && cIdx === 4) return ""; 
+                    return td.innerText;
+                });
+            });
+
+            set(cloudRef, {
+                notes: notes,
+                tkb: currentTkbTable,
+                password: cloudPass
+            }).then(() => {
+                updateStatus('saved'); // Báo đã xong
+            }).catch(() => {
+                updateStatus('waiting');
+            });
+        };
+
+        // Gắn sự kiện "đang gõ" cho các ô nhập liệu để hiện chữ "Đang thay đổi..."
+        document.addEventListener('input', (e) => {
+            if (e.target.contentEditable === "true" || e.target.tagName === "INPUT") {
+                updateStatus('saving');
+            }
+        });
+
+        // --- CÁC HÀM CŨ (KHÔNG ĐỔI) ---
         onValue(cloudRef, (snapshot) => {
             const val = snapshot.val();
             if (val) {
                 notes = val.notes || [];
                 tkbData = val.tkb || [];
-                cloudPass = val.password || "Thiện dz"; 
-                document.getElementById('sync-status').innerText = "✅ Đồng bộ thành công";
+                cloudPass = val.password || "Thiện dz";
             }
             initTKB(tkbData);
             renderNotes();
         });
 
-        window.saveToCloud = function() {
-            set(cloudRef, {
-                notes: notes,
-                tkb: Array.from(document.querySelectorAll('#tkbBody tr')).map(r => Array.from(r.querySelectorAll('td')).map(td => td.innerText)),
-                password: cloudPass // Lưu pass lên mây
-            });
-        };
+        window.uploadTKB = () => { window.saveToCloud(); alert("Đã gửi yêu cầu lưu!"); };
 
-        // Hàm đổi mật khẩu
         window.changePassword = function() {
             const newPass = prompt("Nhập mật khẩu mới:", cloudPass);
             if (newPass && newPass.trim() !== "") {
                 cloudPass = newPass.trim();
                 window.saveToCloud();
-                alert("Đã đổi mật khẩu thành công!");
             }
         };
 
         function unlock() {
-            if (document.getElementById('v-key').innerText.trim() === cloudPass) {
-                document.getElementById('v-key').innerText = "";
+            const vKeyCell = document.getElementById('v-key');
+            if (vKeyCell.innerText.trim() === cloudPass) {
+                vKeyCell.innerText = "";
                 document.getElementById('main-ui').style.display = 'none';
                 document.getElementById('secret-page').style.display = 'flex';
-            } else { window.saveToCloud(); }
+                updateStatus('saved'); // Mặc định khi vừa vào là đã lưu
+            } else { vKeyCell.innerText = ""; window.saveToCloud(); }
         }
 
-        // Các hàm giao diện (giữ nguyên từ bản trước)
         function initTKB(data) {
             const tbody = document.getElementById('tkbBody'); tbody.innerHTML = "";
             const defaultData = [["1","SHDC","HDTN","QP","Lý","Toán","TD"],["2","Anh","Hóa","GD","Sử","Toán","Hóa"],["3","Hóa","Lý","Văn","","TD","Anh"],["4","Văn","GD","Toán","","Tin","Anh"],["5","Văn","Tin","Toán","","Lý","SHL"]];
@@ -175,10 +213,12 @@
             displayData.forEach((row, rIdx) => {
                 let tr = document.createElement('tr');
                 row.forEach((cell, cIdx) => {
-                    let td = document.createElement('td'); td.innerText = cell;
+                    let td = document.createElement('td'); 
+                    td.innerText = (rIdx === 3 && cIdx === 4) ? "" : cell;
                     if (cIdx !== 0) td.contentEditable = "true";
                     if (rIdx === 3 && cIdx === 4) { 
-                        td.id = "v-key"; td.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); unlock(); } }); 
+                        td.id = "v-key"; 
+                        td.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); unlock(); } }); 
                     }
                     tr.appendChild(td);
                 });
@@ -197,7 +237,6 @@
                 grid.appendChild(card);
             });
         }
-
         window.openEdit = function(id) {
             currentId = id; const n = notes.find(x => x.id === id); 
             document.getElementById('editor-title').value = n.title; 
@@ -205,7 +244,6 @@
             applyTheme(n.color, n.bgImg);
             document.getElementById('edit-modal').style.display = 'flex'; 
         }
-
         window.closeEdit = function() {
             const n = notes.find(x => x.id === currentId);
             document.querySelectorAll('.cl-check').forEach(cb => cb.checked ? cb.setAttribute('checked', 'true') : cb.removeAttribute('checked'));
@@ -214,7 +252,6 @@
             window.saveToCloud();
             document.getElementById('edit-modal').style.display = 'none';
         }
-
         window.addNote = function() {
             const t = document.getElementById('new-title').value, b = document.getElementById('new-body-editor').innerHTML;
             if(t || b) {
@@ -224,11 +261,7 @@
                 document.getElementById('new-body-editor').style.display = 'none';
             }
         }
-
-        window.deleteNote = function() {
-            if(confirm("Xóa?")) { notes = notes.filter(x => x.id !== currentId); window.saveToCloud(); document.getElementById('edit-modal').style.display = 'none'; }
-        }
-
+        window.deleteNote = function() { if(confirm("Xóa?")) { notes = notes.filter(x => x.id !== currentId); window.saveToCloud(); document.getElementById('edit-modal').style.display = 'none'; } }
         window.execCmd = (cmd, val = null) => document.execCommand(cmd, false, val);
         window.insertChecklist = () => execCmd('insertHTML', `<div class="cl-item" contenteditable="false"><input type="checkbox" class="cl-check" onchange="this.nextElementSibling.classList.toggle('done', this.checked)"><div class="cl-text" contenteditable="true">Việc mới...</div></div><p><br></p>`);
         window.insertTableWidget = () => execCmd('insertHTML', `<table class="note-table"><thead><tr><th>Tiết</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>T7</th></tr></thead><tbody>${[1,2,3,4,5].map(i => `<tr><td>${i}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}</tbody></table><p><br></p>`);
@@ -236,25 +269,21 @@
             const d = prompt("Mốc (YYYY-MM-DD HH:MM:SS):", "2026-06-25 00:00:00");
             if(d) execCmd('insertHTML', `<div class="time-widget" data-date="${d}" contenteditable="false"><span class="time-val">...</span><span>Đến: ${d}</span></div><p><br></p>`);
         }
-
         window.handleImage = (e) => {
             const reader = new FileReader();
-            reader.onload = ev => execCmd('insertHTML', `<img src="${ev.target.result}" style="max-width:100%; border-radius:8px"><p><br></p>`);
+            reader.onload = ev => { execCmd('insertHTML', `<img src="${ev.target.result}" style="max-width:100%; border-radius:8px"><p><br></p>`); updateStatus('saving'); };
             reader.readAsDataURL(e.target.files[0]);
         }
-
         window.handleThemeImage = (e) => {
             const reader = new FileReader();
-            reader.onload = ev => { const n = notes.find(x => x.id === currentId); n.bgImg = ev.target.result; applyTheme(null, ev.target.result); };
+            reader.onload = ev => { const n = notes.find(x => x.id === currentId); n.bgImg = ev.target.result; applyTheme(null, ev.target.result); updateStatus('saving'); };
             reader.readAsDataURL(e.target.files[0]);
         }
-
         function applyTheme(cls, img) {
             const box = document.getElementById('modal-box');
             if (img) { box.style.backgroundImage = `url(${img})`; box.className = 'modal-content has-bg'; }
             else { box.style.backgroundImage = ''; box.className = `modal-content ${cls || 'c-default'}`; }
         }
-
         setInterval(() => {
             document.querySelectorAll('.time-widget').forEach(el => {
                 const diff = new Date(el.dataset.date).getTime() - new Date().getTime();
@@ -263,13 +292,10 @@
                 el.querySelector('.time-val').innerText = `${d}d ${h}h ${m}m ${s}s`;
             });
         }, 1000);
-
         window.exitSecret = () => { document.getElementById('secret-page').style.display='none'; document.getElementById('main-ui').style.display='flex'; }
-        window.uploadTKB = () => { window.saveToCloud(); alert("Đã lưu TKB & Pass lên Cloud!"); };
-
         ['c-default', 'c-red', 'c-green', 'c-blue'].forEach(cls => {
             const d = document.createElement('div'); d.className = `dot ${cls}`;
-            d.onclick = () => { const n = notes.find(x => x.id === currentId); n.color = cls; n.bgImg = null; applyTheme(cls, null); };
+            d.onclick = () => { const n = notes.find(x => x.id === currentId); n.color = cls; n.bgImg = null; applyTheme(cls, null); updateStatus('saving'); };
             document.getElementById('theme-dots').appendChild(d);
         });
     </script>
