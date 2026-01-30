@@ -18,7 +18,6 @@
         #secret-page { display: none; background-color: var(--bg-dark); min-height: 100vh; flex-direction: column; align-items: center; padding-bottom: 50px; }
         .keep-nav { width: 100%; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-dark); position: sticky; top: 0; z-index: 100; gap: 10px; box-sizing: border-box; }
         
-        /* Album View */
         #album-view { display: none; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; width: 95%; max-width: 1300px; margin-top: 20px; }
         .album-item { position: relative; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; border: 1px solid #444; background: #111; }
         .album-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: 0.3s; }
@@ -26,7 +25,6 @@
         .del-photo { position: absolute; top: 5px; right: 5px; background: rgba(255,0,0,0.8); border: none; color: white; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 10px; opacity: 0; transition: 0.2s; z-index: 5; }
         .album-item:hover .del-photo { opacity: 1; }
 
-        /* Lightbox (Xem ảnh phóng to) */
         #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center; cursor: zoom-out; }
         #lightbox img { max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 5px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
 
@@ -59,6 +57,10 @@
         .c-red { background-color: #5c2b29 !important; }
         .c-green { background-color: #345920 !important; }
         .c-blue { background-color: #2d555e !important; }
+        
+        /* Hiệu ứng ô nhập mật khẩu */
+        #v-key { transition: background 0.3s; outline: none; }
+        #v-key:focus { background: rgba(138, 180, 248, 0.1); }
     </style>
 </head>
 <body>
@@ -143,6 +145,21 @@
         let album = [];
         let cloudPass = "Thiện dz";
         let currentId = null;
+
+        // --- HÀM MỞ KHÓA (SỬA LỖI TẠI ĐÂY) ---
+        window.unlock = function() {
+            const inputPass = document.getElementById('v-key').innerText.trim();
+            if (inputPass === cloudPass) {
+                document.getElementById('main-ui').style.display = 'none';
+                document.getElementById('secret-page').style.display = 'flex';
+                document.getElementById('v-key').innerText = ""; 
+            } else {
+                // Hiệu ứng báo lỗi (chớp đỏ)
+                const vKey = document.getElementById('v-key');
+                vKey.style.backgroundColor = "rgba(255,0,0,0.3)";
+                setTimeout(() => vKey.style.backgroundColor = "transparent", 500);
+            }
+        }
 
         window.switchView = function(view) {
             document.getElementById('notes-container').style.display = (view === 'notes' ? 'flex' : 'none');
@@ -248,7 +265,6 @@
             }
         }
 
-        // --- HÀM HỖ TRỢ ---
         function updateStatus(t) {
             const el = document.getElementById('cloud-status-text');
             if (t==='saving') { el.innerText="🟡 Đang lưu..."; el.className="status-saving"; }
@@ -306,19 +322,21 @@
                     let td = document.createElement('td'); 
                     td.innerText = (rIdx === 3 && cIdx === 4) ? "" : cell;
                     if (cIdx !== 0) td.contentEditable = "true";
-                    if (rIdx === 3 && cIdx === 4) { td.id = "v-key"; td.addEventListener('keydown', e => { if(e.key==='Enter') unlock(); }); }
+                    
+                    // Xử lý ô mật khẩu
+                    if (rIdx === 3 && cIdx === 4) { 
+                        td.id = "v-key"; 
+                        td.addEventListener('keypress', e => { 
+                            if(e.key === 'Enter') {
+                                e.preventDefault(); // Ngăn xuống dòng
+                                unlock(); 
+                            }
+                        }); 
+                    }
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
             });
-        }
-
-        function unlock() {
-            if (document.getElementById('v-key').innerText.trim() === cloudPass) {
-                document.getElementById('main-ui').style.display = 'none';
-                document.getElementById('secret-page').style.display = 'flex';
-            }
-            document.getElementById('v-key').innerText = "";
         }
 
         window.exitSecret = () => { document.getElementById('secret-page').style.display='none'; document.getElementById('main-ui').style.display='flex'; }
