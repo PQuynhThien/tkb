@@ -2,240 +2,423 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TKB 12A8 - Cloud Sync Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKB 12A8 - Cloud Sync Status</title>
     <style>
-        :root { 
-            --bg-dark: #0a0a0a; 
-            --card-bg: #1a1a1b;
-            --border-color: #333; 
-            --text-main: #e8eaed; 
-            --accent-blue: #8ab4f8; 
-            --accent-green: #81c995;
-        }
+        :root { --bg-dark: #202124; --border-color: #5f6368; --text-main: #e8eaed; --accent-blue: #8ab4f8; }
+        body { background-color: #050505; color: var(--text-main); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
+        #main-ui { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; }
+        .led-border { padding: 3px; border-radius: 12px; background: linear-gradient(90deg, #ff0000, #00f2ff, #7a00ff, #ff0000); background-size: 300%; animation: led-run 10s linear infinite; }
+        @keyframes led-run { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+        .container { background: #0f0f0f; border-radius: 10px; padding: 25px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        table { border-collapse: collapse; width: 100%; border: 1px solid #333; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: center; min-width: 90px; }
+        th { color: var(--accent-blue); background: #1a1a1a; }
         
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--text-main); 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            margin: 0; 
-            overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* UI Main */
-        #main-ui { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; padding: 10px; box-sizing: border-box; }
+        #secret-page { display: none; background-color: var(--bg-dark); min-height: 100vh; flex-direction: column; align-items: center; padding-bottom: 50px; }
+        .keep-nav { width: 100%; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-dark); position: sticky; top: 0; z-index: 100; gap: 10px; box-sizing: border-box; }
         
-        .led-border { 
-            padding: 2px; border-radius: 12px; 
-            background: linear-gradient(90deg, #ff0000, #00f2ff, #7a00ff, #ff0000); 
-            background-size: 300%; animation: led-run 8s linear infinite;
-            width: 100%; max-width: 800px;
-        }
-        @keyframes led-run { 0% { background-position: 0%; } 100% { background-position: 300%; } }
+        #album-view { display: none; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; width: 95%; max-width: 1300px; margin-top: 20px; }
+        .album-item { position: relative; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; border: 1px solid #444; background: #111; }
+        .album-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: 0.3s; }
+        .album-item:hover img { transform: scale(1.08); }
+        .del-photo { position: absolute; top: 5px; right: 5px; background: rgba(255,0,0,0.8); border: none; color: white; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 10px; opacity: 0; transition: 0.2s; z-index: 5; }
+        .album-item:hover .del-photo { opacity: 1; }
 
-        .container { background: #0f0f0f; border-radius: 10px; padding: 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        
-        table { border-collapse: collapse; width: 100%; min-width: 550px; }
-        th, td { border: 1px solid #222; padding: 12px 8px; text-align: center; font-size: 14px; }
-        th { color: var(--accent-blue); background: #151515; font-weight: 600; }
-        td[contenteditable="true"]:focus { background: rgba(138, 180, 248, 0.1); outline: none; }
+        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center; cursor: zoom-out; }
+        #lightbox img { max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 5px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
 
-        /* Secret Page */
-        #secret-page { display: none; background-color: var(--bg-dark); min-height: 100vh; flex-direction: column; }
-        .keep-nav { 
-            display: flex; align-items: center; padding: 10px 15px; 
-            background: #1e1e1e; border-bottom: 1px solid var(--border-color);
-            position: sticky; top: 0; z-index: 100; gap: 10px;
-        }
+        .view-btn { background: #3c4043; border: 1px solid #5f6368; color: white; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; margin-left: 10px; }
+        .view-btn.active { background: var(--accent-blue); color: black; font-weight: bold; }
 
-        /* Buttons */
-        .btn-ui { 
-            padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border-color); 
-            background: #252525; color: var(--text-main); cursor: pointer; font-weight: 500;
-            transition: 0.2s; white-space: nowrap;
-        }
-        .btn-ui:active { transform: scale(0.95); }
-        .btn-primary { background: var(--accent-blue); color: #000; border: none; }
-
-        /* Notes Grid */
-        #notes-grid { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
-            gap: 12px; padding: 15px; 
-        }
-        @media (min-width: 600px) { #notes-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } }
-
-        .note-card { 
-            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; 
-            padding: 12px; height: 140px; overflow: hidden; cursor: pointer;
-        }
-
-        /* Utils */
-        .status-tag { font-size: 11px; padding: 4px 8px; border-radius: 12px; }
-        .status-saved { color: var(--accent-green); background: rgba(129, 201, 149, 0.1); }
+        #cloud-status-text { font-size: 12px; font-weight: normal; padding: 5px 10px; border-radius: 15px; transition: 0.3s; }
+        .status-saved { color: #81c995; background: rgba(129, 201, 149, 0.1); }
         .status-saving { color: #fdd663; background: rgba(253, 214, 99, 0.1); }
+
+        #notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; width: 95%; max-width: 1300px; margin-top: 20px; }
+        .note-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; cursor: pointer; transition: 0.3s; overflow: hidden; max-height: 450px; position: relative; background-size: cover; background-position: center; }
+        .note-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1; display: none; }
+        .note-card.has-bg::before { display: block; }
+        .note-card .content-wrapper { position: relative; z-index: 2; }
+
+        #edit-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { width: 98%; max-width: 850px; border-radius: 15px; border: 1px solid var(--border-color); background: var(--bg-dark); background-size: cover; background-position: center; position: relative; overflow: hidden; }
+        .modal-inner { position: relative; z-index: 2; display: flex; flex-direction: column; }
         
-        #v-key { background: rgba(255,255,255,0.03); caret-color: var(--accent-blue); }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: rgba(30, 31, 34, 0.95); border-bottom: 1px solid var(--border-color); align-items: center; }
+        .tool-btn { background: #3c4043; border: 1px solid #5f6368; color: white; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 12px; }
+        .tool-btn:hover { background: #4e5256; }
+        #editor-body { width: 100%; min-height: 450px; max-height: 70vh; padding: 25px; outline: none; overflow-y: auto; box-sizing: border-box; line-height: 1.6; }
+
+        .btn-ui { padding: 8px 15px; border-radius: 4px; border: 1px solid var(--border-color); background: transparent; color: var(--accent-blue); cursor: pointer; font-weight: bold; }
+        .input-wrapper { width: 100%; max-width: 600px; margin-top: 30px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; }
+        #new-title { width: 100%; padding: 12px 15px; background: transparent; border: none; color: white; outline: none; font-weight: bold; }
+        
+        /* Màu nền cho note card */
+        .c-default { background-color: #202124 !important; }
+        .c-red { background-color: #5c2b29 !important; }
+        .c-green { background-color: #345920 !important; }
+        .c-blue { background-color: #2d555e !important; }
+        
+        #v-key { transition: background 0.3s; outline: none; }
+        #v-key:focus { background: rgba(138, 180, 248, 0.1); }
+
+        /* Style cho checkbox trong trình soạn thảo */
+        .editor-cb { width: 18px; height: 18px; vertical-align: middle; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="main-ui">
-        <div class="led-border">
-            <div class="container">
-                <h3 style="text-align:center; margin: 10px 0; color:var(--accent-blue)">12A8 SCHEDULE ☁️</h3>
-                <table>
-                    <thead><tr><th>Tiết</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>T7</th></tr></thead>
-                    <tbody id="tkbBody"></tbody>
-                </table>
-            </div>
-        </div>
-        <div style="margin-top:20px; display:flex; gap:10px; align-items:center">
-            <button class="btn-ui btn-primary" onclick="manualSave()">💾 LƯU ĐÁM MÂY</button>
-            <span id="sync-status" class="status-tag status-saved">Đã kết nối</span>
-        </div>
+        <div class="led-border"><div class="container">
+            <h1 style="text-align:center; color:var(--accent-blue)">12A8 SCHEDULE ☁️</h1>
+            <table>
+                <thead><tr><th>Tiết</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th></tr></thead>
+                <tbody id="tkbBody"></tbody>
+            </table>
+        </div></div>
+        <button class="btn-ui" style="margin-top:20px" onclick="uploadTKB()">💾 LƯU LẠI</button>
+        <div id="sync-status-main" style="margin-top:10px; font-size:12px; color:#81c995">Đã kết nối</div>
     </div>
 
     <div id="secret-page">
         <nav class="keep-nav">
-            <span style="flex-grow:1; font-weight:bold; font-size:16px">BÍ MẬT 🤫</span>
-            <div id="cloud-status-text" class="status-tag status-saved">🟢 Cloud OK</div>
+            <div style="flex-grow:1; font-size:20px; font-weight:bold; display: flex; align-items: center;">
+                <span style="color:var(--accent-blue); margin-right:8px">⏱️</span> Nơi bí mật
+                <button id="btn-view-notes" class="view-btn active" onclick="switchView('notes')">Ghi chú</button>
+                <button id="btn-view-album" class="view-btn" onclick="switchView('album')">Album Ảnh</button>
+            </div>
+            <div id="cloud-status-text" class="status-saved">🟢 Đã lưu Cloud</div>
+            <button class="btn-ui" style="color:#ff9800" onclick="changePassword()">🔑 ĐỔI PASS</button>
             <button class="btn-ui" onclick="exitSecret()">ĐÓNG</button>
         </nav>
         
-        <div id="notes-container" style="padding: 10px;">
-            <div style="background: #1e1e1e; border-radius: 12px; padding: 5px; margin-bottom: 20px; border: 1px solid #333">
-                <input type="text" id="note-quick-title" placeholder="Ghi chú nhanh..." style="width:100%; background:transparent; border:none; color:white; padding:10px; outline:none">
+        <div id="notes-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="input-wrapper">
+                <input type="text" id="new-title" placeholder="Tiêu đề..." onclick="document.getElementById('new-body-editor').style.display='block'; document.getElementById('new-actions').style.display='flex'">
+                <div id="new-body-editor" contenteditable="true" style="display:none; padding:12px 15px; outline:none; border-top:1px solid #444"></div>
+                <div id="new-actions" style="display:none; padding:10px; justify-content:flex-end;"><button class="btn-ui" onclick="addNote()">Xong</button></div>
             </div>
             <div id="notes-grid"></div>
         </div>
+
+        <div id="album-view"></div>
     </div>
+
+    <div id="lightbox" onclick="this.style.display='none'">
+        <img id="lightbox-img" src="" alt="Full view">
+    </div>
+
+    <div id="edit-modal"><div class="modal-content" id="modal-box"><div class="modal-inner">
+        <div class="toolbar">
+            <button class="tool-btn" onclick="execCmd('bold')">B</button>
+            <button class="tool-btn" onclick="insertCheckbox()">☑ Checkbox</button>
+            <input type="color" id="colorPicker" title="Màu chữ" onchange="execCmd('foreColor', this.value)" style="width:30px; height:25px; border:none; background:none; cursor:pointer">
+            <button class="tool-btn" onclick="document.getElementById('imgInput').click()">🖼 Ảnh</button>
+            <button class="tool-btn" onclick="document.getElementById('themeImgInput').click()">🌄 Nền</button>
+            
+            <input type="file" id="imgInput" style="display:none" accept="image/*" onchange="handleImage(event)">
+            <input type="file" id="themeImgInput" style="display:none" accept="image/*" onchange="handleThemeImage(event)">
+            
+            <div style="flex-grow:1"></div>
+            <div style="display:flex; gap:5px">
+                <div onclick="setNoteTheme('c-default')" style="width:20px; height:20px; border-radius:50%; background:#202124; border:1px solid white; cursor:pointer"></div>
+                <div onclick="setNoteTheme('c-red')" style="width:20px; height:20px; border-radius:50%; background:#5c2b29; cursor:pointer"></div>
+                <div onclick="setNoteTheme('c-green')" style="width:20px; height:20px; border-radius:50%; background:#345920; cursor:pointer"></div>
+                <div onclick="setNoteTheme('c-blue')" style="width:20px; height:20px; border-radius:50%; background:#2d555e; cursor:pointer"></div>
+            </div>
+        </div>
+        <input type="text" id="editor-title" placeholder="Tiêu đề" style="width:100%; background:transparent; border:none; color:white; padding:15px; font-size:1.2em; outline:none; font-weight:bold">
+        <div id="editor-body" contenteditable="true"></div>
+        <div style="padding:15px; text-align:right; border-top:1px solid #444; display:flex; justify-content:space-between">
+            <button class="btn-ui" style="color:#ff4d4d" onclick="deleteNote()">🗑 Xóa</button>
+            <button class="btn-ui" style="background:var(--accent-blue); color:black" onclick="closeEdit()">Lưu & Đóng</button>
+        </div>
+    </div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBbkwe6VSL_E3QSykRvlzAJBYjhDegCtv8",
             authDomain: "htgdfg-45e29.firebaseapp.com",
             projectId: "htgdfg-45e29",
             storageBucket: "htgdfg-45e29.firebasestorage.app",
             messagingSenderId: "592286526717",
-            appId: "1:592286526717:web:c3f1b01a6eaddefeaa2294"
+            appId: "1:592286526717:web:c3f1b01a6eaddefeaa2294",
+            measurementId: "G-GW7TN1VTXD"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const cloudRef = ref(db, 'master_data');
 
-        // State & Local Cache
-        let state = {
-            tkb: JSON.parse(localStorage.getItem('tkb')) || [],
-            notes: JSON.parse(localStorage.getItem('notes')) || [],
-            password: "Thiện dz"
+        let notes = [];
+        let tkbData = [];
+        let album = [];
+        let cloudPass = "Thiện dz";
+        let currentId = null;
+
+        // --- HÀM MỞ KHÓA ---
+        window.unlock = function() {
+            const inputPass = document.getElementById('v-key').innerText.trim();
+            if (inputPass === cloudPass) {
+                document.getElementById('main-ui').style.display = 'none';
+                document.getElementById('secret-page').style.display = 'flex';
+                document.getElementById('v-key').innerText = ""; 
+            } else {
+                const vKey = document.getElementById('v-key');
+                vKey.style.backgroundColor = "rgba(255,0,0,0.3)";
+                setTimeout(() => vKey.style.backgroundColor = "transparent", 500);
+            }
+        }
+
+        window.exitSecret = function() {
+            document.getElementById('secret-page').style.display = 'none';
+            document.getElementById('main-ui').style.display = 'flex';
+        }
+
+        window.switchView = function(view) {
+            document.getElementById('notes-container').style.display = (view === 'notes' ? 'flex' : 'none');
+            document.getElementById('album-view').style.display = (view === 'album' ? 'grid' : 'none');
+            document.getElementById('btn-view-notes').className = 'view-btn' + (view === 'notes' ? ' active' : '');
+            document.getElementById('btn-view-album').className = 'view-btn' + (view === 'album' ? ' active' : '');
+            if(view === 'album') renderAlbum();
+        }
+
+        // --- CLOUD LOGIC ---
+        window.saveToCloud = function() {
+            updateStatus('saving');
+            
+            // Lấy dữ liệu TKB hiện tại
+            const tkbRows = document.querySelectorAll('#tkbBody tr');
+            const currentTkbTable = Array.from(tkbRows).map((r, rIdx) => {
+                return Array.from(r.querySelectorAll('td')).map((td, cIdx) => (rIdx === 3 && cIdx === 4) ? "" : td.innerText);
+            });
+
+            // Lưu dữ liệu
+            set(cloudRef, {
+                notes: notes,
+                tkb: currentTkbTable,
+                album: album,
+                password: cloudPass
+            }).then(() => updateStatus('saved'));
         };
 
-        // 1. HIỆN TKB NGAY LẬP TỨC (OPTIMISTIC UI)
-        renderTKB(state.tkb);
+        window.uploadTKB = function() { window.saveToCloud(); };
 
-        // 2. LẮNG NGHE CLOUD (CHỈ CẬP NHẬT KHI CÓ THAY ĐỔI THỰC SỰ)
         onValue(cloudRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const isDifferent = JSON.stringify(data.tkb) !== JSON.stringify(state.tkb);
-                state = data;
-                localStorage.setItem('tkb', JSON.stringify(data.tkb));
-                localStorage.setItem('notes', JSON.stringify(data.notes));
-                if (isDifferent) renderTKB(data.tkb);
-                updateStatusUI('saved');
+            const val = snapshot.val();
+            if (val) {
+                notes = val.notes || [];
+                tkbData = val.tkb || [];
+                album = val.album || [];
+                cloudPass = val.password || "Thiện dz";
             }
+            initTKB(tkbData);
+            renderNotes();
+            renderAlbum();
         });
 
-        // 3. RENDER TKB
-        function renderTKB(data) {
-            const tbody = document.getElementById('tkbBody');
-            const def = [["1","SHDC","HDTN","QP","Lý","Toán","TD"],["2","Anh","Hóa","GD","Sử","Toán","Hóa"],["3","Hóa","Lý","Văn","","TD","Anh"],["4","Văn","GD","Toán","","Tin","Anh"],["5","Văn","Tin","Toán","","Lý","SHL"]];
-            const rows = data.length ? data : def;
-            
-            tbody.innerHTML = rows.map((row, rIdx) => `
-                <tr>
-                    ${row.map((cell, cIdx) => {
-                        const isKey = (rIdx === 3 && cIdx === 4);
-                        return `<td ${cIdx !== 0 ? 'contenteditable="true"' : ''} 
-                                    ${isKey ? 'id="v-key" style="background:rgba(138,180,248,0.1)"' : ''}>
-                                    ${isKey ? '' : cell}</td>`;
-                    }).join('')}
-                </tr>
-            `).join('');
-
-            // Sự kiện gõ mật khẩu (vào thẳng không cần Enter)
-            const vKey = document.getElementById('v-key');
-            vKey.addEventListener('input', () => {
-                if (vKey.innerText.trim() === state.password) {
-                    vKey.innerText = "";
-                    unlock();
-                }
+        // --- ALBUM LOGIC ---
+        window.renderAlbum = function() {
+            const albumView = document.getElementById('album-view');
+            albumView.innerHTML = `
+                <div class="album-item" onclick="document.getElementById('albumUpload').click()" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed #555; color:#888; cursor:pointer">
+                    <span style="font-size:30px">+</span><small>Thêm ảnh</small>
+                    <input type="file" id="albumUpload" style="display:none" accept="image/*" onchange="addPhoto(event)">
+                </div>
+            `;
+            album.forEach((imgSrc, index) => {
+                const item = document.createElement('div');
+                item.className = 'album-item';
+                item.innerHTML = `
+                    <img src="${imgSrc}" onclick="viewFullImage('${imgSrc}')">
+                    <button class="del-photo" onclick="event.stopPropagation(); deletePhoto(${index})">Xóa</button>
+                `;
+                albumView.appendChild(item);
             });
         }
 
-        // 4. LƯU DỮ LIỆU (TỐI ƯU)
-        async function manualSave() {
-            updateStatusUI('saving');
-            
-            // Cập nhật state từ DOM
-            const rows = document.querySelectorAll('#tkbBody tr');
-            state.tkb = Array.from(rows).map((r, rIdx) => 
-                Array.from(r.querySelectorAll('td')).map((td, cIdx) => 
-                    (rIdx === 3 && cIdx === 4) ? "" : td.innerText
-                )
-            );
+        window.viewFullImage = function(src) {
+            const lb = document.getElementById('lightbox');
+            const lbImg = document.getElementById('lightbox-img');
+            lbImg.src = src;
+            lb.style.display = 'flex';
+        }
 
-            try {
-                await set(cloudRef, state);
-                localStorage.setItem('tkb', JSON.stringify(state.tkb));
-                updateStatusUI('saved');
-            } catch (e) {
-                alert("Lỗi kết nối! Dữ liệu đã lưu tạm ở máy.");
-                updateStatusUI('error');
+        window.addPhoto = function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                album.unshift(ev.target.result);
+                window.saveToCloud();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.deletePhoto = function(index) {
+            if(confirm("Xóa ảnh khỏi Album?")) {
+                album.splice(index, 1);
+                window.saveToCloud();
             }
         }
 
-        // 5. TRANG BÍ MẬT
-        function unlock() {
-            document.getElementById('main-ui').style.display = 'none';
-            document.getElementById('secret-page').style.display = 'flex';
-            renderNotes();
+        // --- GHI CHÚ LOGIC ---
+        window.renderNotes = function() {
+            const grid = document.getElementById('notes-grid'); 
+            grid.innerHTML = "";
+            notes.forEach(n => {
+                const card = document.createElement('div');
+                card.className = `note-card ${n.bgImg ? 'has-bg' : (n.color || 'c-default')}`;
+                if (n.bgImg) card.style.backgroundImage = `url(${n.bgImg})`;
+                card.onclick = () => openEdit(n.id);
+                card.innerHTML = `
+                    <div class="content-wrapper">
+                        <div style="font-weight:bold; margin-bottom:8px">${n.title || 'Ghi chú'}</div>
+                        <div style="font-size:13px; max-height:120px; overflow:hidden">${n.body}</div>
+                    </div>`;
+                grid.appendChild(card);
+            });
         }
 
-        window.exitSecret = () => {
-            document.getElementById('secret-page').style.display = 'none';
-            document.getElementById('main-ui').style.display = 'flex';
+        window.addNote = function() {
+            const t = document.getElementById('new-title').value;
+            const b = document.getElementById('new-body-editor').innerHTML;
+            if(t || b) {
+                notes.unshift({ 
+                    id: Date.now(), 
+                    title: t, 
+                    body: b, 
+                    color: 'c-default', 
+                    bgImg: null 
+                });
+                window.saveToCloud();
+                document.getElementById('new-title').value = ""; 
+                document.getElementById('new-body-editor').innerHTML = ""; 
+                document.getElementById('new-body-editor').style.display = 'none';
+            }
+        }
+
+        window.openEdit = (id) => {
+            currentId = id; 
+            const n = notes.find(x => x.id === id); 
+            document.getElementById('editor-title').value = n.title || ""; 
+            document.getElementById('editor-body').innerHTML = n.body || ""; 
+            applyTheme(n.color, n.bgImg);
+            document.getElementById('edit-modal').style.display = 'flex'; 
+        }
+
+        window.closeEdit = () => {
+            const n = notes.find(x => x.id === currentId);
+            n.title = document.getElementById('editor-title').value;
+            
+            // XỬ LÝ LƯU TRẠNG THÁI CHECKBOX TRƯỚC KHI LƯU
+            const editor = document.getElementById('editor-body');
+            const checkboxes = editor.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                if (cb.checked) cb.setAttribute('checked', 'checked');
+                else cb.removeAttribute('checked');
+            });
+
+            n.body = editor.innerHTML;
+            window.saveToCloud();
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        // CHỨC NĂNG GHI CHÚ MỚI
+        window.execCmd = (c, v=null) => {
+            document.execCommand(c, false, v);
+            document.getElementById('editor-body').focus();
         };
 
-        function renderNotes() {
-            const grid = document.getElementById('notes-grid');
-            grid.innerHTML = state.notes.map(n => `
-                <div class="note-card">
-                    <div style="font-weight:bold; margin-bottom:5px">${n.title || 'Ghi chú'}</div>
-                    <div style="font-size:13px; opacity:0.8">${n.body || ''}</div>
-                </div>
-            `).join('');
+        window.insertCheckbox = function() {
+            const html = `<div><input type="checkbox" class="editor-cb">&nbsp;</div>`;
+            execCmd('insertHTML', html);
         }
 
-        function updateStatusUI(status) {
-            const el = document.getElementById('sync-status');
-            const el2 = document.getElementById('cloud-status-text');
-            if (status === 'saving') {
-                el.innerText = el2.innerText = "Đang lưu...";
-                el.className = el2.className = "status-tag status-saving";
-            } else {
-                el.innerText = el2.innerText = "Đã lưu Cloud";
-                el.className = el2.className = "status-tag status-saved";
+        window.setNoteTheme = (cls) => {
+            const n = notes.find(x => x.id === currentId);
+            n.color = cls;
+            n.bgImg = null;
+            applyTheme(cls, null);
+        }
+
+        function applyTheme(cls, img) {
+            const box = document.getElementById('modal-box');
+            if (img) { 
+                box.style.backgroundImage = `url(${img})`; 
+                box.className = 'modal-content has-bg'; 
+            } else { 
+                box.style.backgroundImage = ''; 
+                box.className = `modal-content ${cls || 'c-default'}`; 
             }
         }
 
-        window.manualSave = manualSave;
+        window.handleImage = (e) => {
+            const r = new FileReader();
+            r.onload = ev => { 
+                execCmd('insertHTML', `<img src="${ev.target.result}" style="max-width:100%; border-radius:8px" onclick="window.viewFullImage('${ev.target.result}')"><br>`); 
+            };
+            r.readAsDataURL(e.target.files[0]);
+        }
+
+        window.handleThemeImage = (e) => {
+            const r = new FileReader();
+            r.onload = ev => { 
+                const n = notes.find(x => x.id === currentId); 
+                n.bgImg = ev.target.result; 
+                applyTheme(null, ev.target.result); 
+            };
+            r.readAsDataURL(e.target.files[0]);
+        }
+
+        window.deleteNote = () => { 
+            if(confirm("Xóa ghi chú này?")) { 
+                notes = notes.filter(x => x.id !== currentId); 
+                window.saveToCloud(); 
+                document.getElementById('edit-modal').style.display = 'none'; 
+            } 
+        }
+
+        window.changePassword = function() {
+            const p = prompt("Mật khẩu mới:", cloudPass);
+            if(p) { cloudPass = p; window.saveToCloud(); }
+        }
+
+        function updateStatus(t) {
+            const el = document.getElementById('cloud-status-text');
+            if (t==='saving') { el.innerText="🟡 Đang lưu..."; el.className="status-saving"; }
+            else { el.innerText="🟢 Đã lưu Cloud"; el.className="status-saved"; }
+        }
+
+        function initTKB(data) {
+            const tbody = document.getElementById('tkbBody'); 
+            tbody.innerHTML = "";
+            const def = [["1","SHDC","HDTN","QP","Lý","Toán","TD"],["2","Anh","Hóa","GD","Sử","Toán","Hóa"],["3","Hóa","Lý","Văn","","TD","Anh"],["4","Văn","GD","Toán","","Tin","Anh"],["5","Văn","Tin","Toán","","Lý","SHL"]];
+            (data.length ? data : def).forEach((row, rIdx) => {
+                let tr = document.createElement('tr');
+                row.forEach((cell, cIdx) => {
+                    let td = document.createElement('td'); 
+                    td.innerText = (rIdx === 3 && cIdx === 4) ? "" : cell;
+                    if (cIdx !== 0) td.contentEditable = "true";
+                    
+                    if (rIdx === 3 && cIdx === 4) { 
+                        td.id = "v-key"; 
+                        td.addEventListener('keypress', e => { 
+                            if(e.key === 'Enter') {
+                                e.preventDefault();
+                                unlock(); 
+                            }
+                        }); 
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
     </script>
 </body>
 </html>
